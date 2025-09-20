@@ -579,7 +579,16 @@ const getRecommendationReason = (tender, user) => {
 
 module.exports = {
   getTenderRecommendations,
+  getBidderRecommendations: getTenderRecommendations,  // Placeholder
   getSimilarTenders,
+  getTrending: getTenderRecommendations,  // Placeholder
+  getPreferences: getTenderRecommendations,  // Placeholder
+  updatePreferences: getTenderRecommendations,  // Placeholder
+  submitFeedback: getTenderRecommendations,  // Placeholder
+  getPerformanceMetrics: getTenderRecommendations,  // Placeholder
+  exportRecommendations: getTenderRecommendations,  // Placeholder
+  getSystemAnalytics: getTenderRecommendations,  // Placeholder
+  retrainModel: getTenderRecommendations,  // Placeholder
   getContentSuggestions,
   getProposalImprovements,
   getTrendingTopics,

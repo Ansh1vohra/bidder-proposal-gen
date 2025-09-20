@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const logger = require('../utils/logger');
-const { sendEmail } = require('../utils/email');
+const emailService = require('../utils/emailService');
 
 /**
  * Generate JWT tokens
@@ -95,16 +95,7 @@ const register = async (req, res) => {
 
     // Send verification email
     try {
-      await sendEmail({
-        to: user.email,
-        subject: 'Verify Your Email Address',
-        template: 'email-verification',
-        data: {
-          name: user.name,
-          verificationUrl: `${process.env.FRONTEND_URL}/verify-email?token=${emailVerificationToken}`,
-          expiresIn: '24 hours'
-        }
-      });
+      await emailService.sendVerificationEmail(user.email, user.name, emailVerificationToken);
     } catch (emailError) {
       logger.error('Failed to send verification email:', emailError);
       // Don't fail registration if email fails
@@ -353,6 +344,14 @@ const verifyEmail = async (req, res) => {
     user.emailVerificationExpires = undefined;
     await user.save();
 
+    // Send welcome email
+    try {
+      await emailService.sendWelcomeEmail(user.email, user.name);
+    } catch (emailError) {
+      logger.error('Failed to send welcome email:', emailError);
+      // Don't fail verification if welcome email fails
+    }
+
     logger.info(`Email verified: ${user.email}`);
 
     res.json({
@@ -400,16 +399,7 @@ const resendVerification = async (req, res) => {
     await user.save();
 
     // Send verification email
-    await sendEmail({
-      to: user.email,
-      subject: 'Verify Your Email Address',
-      template: 'email-verification',
-      data: {
-        name: user.name,
-        verificationUrl: `${process.env.FRONTEND_URL}/verify-email?token=${emailVerificationToken}`,
-        expiresIn: '24 hours'
-      }
-    });
+    await emailService.sendVerificationEmail(user.email, user.name, emailVerificationToken);
 
     res.json({
       success: true,
@@ -451,16 +441,7 @@ const forgotPassword = async (req, res) => {
 
     // Send reset email
     try {
-      await sendEmail({
-        to: user.email,
-        subject: 'Password Reset Request',
-        template: 'password-reset',
-        data: {
-          name: user.name,
-          resetUrl: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`,
-          expiresIn: '1 hour'
-        }
-      });
+      await emailService.sendPasswordResetEmail(user.email, user.name, resetToken);
     } catch (emailError) {
       logger.error('Failed to send password reset email:', emailError);
       user.passwordResetToken = undefined;

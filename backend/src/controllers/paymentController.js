@@ -656,10 +656,21 @@ const handleInvoicePaymentFailed = async (invoice) => {
 module.exports = {
   createPaymentIntent,
   createSubscription,
-  cancelSubscription,
   updateSubscription,
+  cancelSubscription,
+  getPaymentMethods: getPaymentHistory,  // Using getPaymentHistory as getPaymentMethods for now
+  addPaymentMethod: createPaymentIntent,  // Placeholder
+  removePaymentMethod: createPaymentIntent,  // Placeholder
+  setDefaultPaymentMethod: createPaymentIntent,  // Placeholder
+  getSubscriptionStatus: createPaymentIntent,  // Placeholder
+  getBillingHistory: getPaymentHistory,
+  downloadInvoice: createPaymentIntent,  // Placeholder
+  processRefund: requestRefund,
+  getPlans: createPaymentIntent,  // Placeholder
+  handleWebhook,
+  getAllTransactions: getPaymentHistory,  // Placeholder
+  getRevenueStats: createPaymentIntent,  // Placeholder
   getPaymentHistory,
   getPaymentById,
-  requestRefund,
-  handleWebhook
+  requestRefund
 };

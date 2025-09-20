@@ -3,14 +3,33 @@ const logger = require('../utils/logger');
 
 class GeminiService {
   constructor() {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is required');
-    }
+    this.apiKey = process.env.GEMINI_API_KEY;
+    this.isConfigured = false;
     
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ 
-      model: process.env.GEMINI_MODEL || 'gemini-pro' 
-    });
+    if (!this.apiKey || this.apiKey === 'your-gemini-api-key-here') {
+      logger.warn('GEMINI_API_KEY not configured. AI features will be disabled.');
+      this.genAI = null;
+      this.model = null;
+    } else {
+      try {
+        this.genAI = new GoogleGenerativeAI(this.apiKey);
+        this.model = this.genAI.getGenerativeModel({ 
+          model: process.env.GEMINI_MODEL || 'gemini-pro' 
+        });
+        this.isConfigured = true;
+        logger.info('Gemini AI service initialized successfully');
+      } catch (error) {
+        logger.error('Failed to initialize Gemini AI service:', error);
+        this.genAI = null;
+        this.model = null;
+      }
+    }
+  }
+
+  _checkConfiguration() {
+    if (!this.isConfigured) {
+      throw new Error('Gemini AI service is not configured. Please set GEMINI_API_KEY environment variable.');
+    }
   }
 
   /**
@@ -21,6 +40,8 @@ class GeminiService {
    * @returns {Promise<Object>} Generated proposal
    */
   async generateProposal(tenderData, companyProfile, customRequirements = '') {
+    this._checkConfiguration();
+    
     try {
       const prompt = this.buildProposalPrompt(tenderData, companyProfile, customRequirements);
       
@@ -53,6 +74,8 @@ class GeminiService {
    * @returns {Promise<Array>} Recommended tenders
    */
   async generateTenderRecommendations(userProfile, availableTenders) {
+    this._checkConfiguration();
+    
     try {
       const prompt = this.buildRecommendationPrompt(userProfile, availableTenders);
       
@@ -77,6 +100,8 @@ class GeminiService {
    * @returns {Promise<Object>} Analyzed requirements
    */
   async analyzeTenderRequirements(tenderDescription) {
+    this._checkConfiguration();
+    
     try {
       const prompt = `
         Analyze the following tender description and extract key information:
