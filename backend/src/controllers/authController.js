@@ -8,17 +8,25 @@ const emailService = require('../utils/emailService');
 /**
  * Generate JWT tokens
  */
-const generateTokens = (userId, role = 'user') => {
+const generateTokens = (userId, userType = 'bidder') => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
+  
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET environment variable is not set');
+  }
+
   const accessToken = jwt.sign(
-    { userId, role },
+    { userId, userType },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
   );
 
   const refreshToken = jwt.sign(
-    { userId, role },
-    process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d' }
+    { userId, userType },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
   );
 
   return { accessToken, refreshToken };
@@ -76,19 +84,20 @@ const register = async (req, res) => {
       email: email.toLowerCase(),
       password: hashedPassword,
       name: name.trim(),
-      role,
+      userType: role || 'bidder',
       emailVerificationToken,
-      emailVerificationExpires
+      emailVerificationExpires,
+      profile: {}
     };
 
-    if (phone) userData.phone = phone;
-    if (company) userData.company = company;
+    if (phone) userData.profile.contactNumber = phone;
+    if (company) userData.profile.companyName = company;
 
     const user = new User(userData);
     await user.save();
 
     // Generate tokens
-    const tokens = generateTokens(user._id, user.role);
+    const tokens = generateTokens(user._id, user.userType);
 
     // Add refresh token to user
     await user.addRefreshToken(tokens.refreshToken, req.ip, req.headers['user-agent']);
@@ -143,8 +152,8 @@ const login = async (req, res) => {
       });
     }
 
-    // Find user
-    const user = await User.findOne({ email: email.toLowerCase() });
+    // Find user and include password field
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -152,24 +161,27 @@ const login = async (req, res) => {
       });
     }
 
-    // Check if user is active
-    if (!user.isActive) {
+    // Check account status
+    if (user.status === 'inactive' || user.status === 'suspended') {
       return res.status(401).json({
         success: false,
         message: 'Account is deactivated. Please contact support.'
       });
     }
 
+    // Check if email is verified
+    if (!user.emailVerified) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please verify your email address before logging in.'
+      });
+    }
+
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      // Log failed login attempt
-      user.loginAttempts.push({
-        ip: req.ip,
-        userAgent: req.headers['user-agent'],
-        success: false
-      });
-      await user.save();
+      // Increment login attempts
+      await user.incLoginAttempts();
 
       return res.status(401).json({
         success: false,
@@ -177,31 +189,24 @@ const login = async (req, res) => {
       });
     }
 
-    // Check for too many failed attempts
-    const recentFailedAttempts = user.loginAttempts.filter(attempt => 
-      !attempt.success && 
-      new Date() - attempt.timestamp < 15 * 60 * 1000 // Last 15 minutes
-    );
-
-    if (recentFailedAttempts.length >= 5) {
+    // Check if account is locked
+    if (user.isLocked) {
       return res.status(429).json({
         success: false,
-        message: 'Too many failed login attempts. Please try again later.'
+        message: 'Account temporarily locked due to too many failed login attempts. Please try again later.'
       });
     }
 
     // Generate tokens
-    const tokens = generateTokens(user._id, user.role);
+    const tokens = generateTokens(user._id, user.userType);
 
     // Add refresh token to user
     await user.addRefreshToken(tokens.refreshToken, req.ip, req.headers['user-agent']);
 
-    // Log successful login
-    user.loginAttempts.push({
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-      success: true
-    });
+    // Reset login attempts on successful login
+    if (user.loginAttempts > 0) {
+      await user.resetLoginAttempts();
+    }
 
     // Update last login
     user.lastLogin = new Date();
@@ -242,7 +247,7 @@ const refreshToken = async (req, res) => {
     const oldRefreshToken = req.refreshToken;
 
     // Generate new tokens
-    const tokens = generateTokens(user._id, user.role);
+    const tokens = generateTokens(user._id, user.userType);
 
     // Remove old refresh token and add new one
     await user.removeRefreshToken(oldRefreshToken);

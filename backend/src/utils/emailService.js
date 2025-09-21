@@ -9,9 +9,9 @@ class EmailService {
 
   async initialize() {
     try {
-      // Create transporter based on environment
-      if (process.env.NODE_ENV === 'production') {
-        // Production email service (e.g., SendGrid, AWS SES, etc.)
+      // Use Gmail service if credentials are provided, otherwise fallback to testing
+      if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+        // Use Gmail with app password
         this.transporter = nodemailer.createTransport({
           service: process.env.EMAIL_SERVICE || 'gmail',
           auth: {
@@ -19,8 +19,9 @@ class EmailService {
             pass: process.env.EMAIL_PASSWORD
           }
         });
+        logger.info('Using Gmail service for email delivery');
       } else {
-        // Development - use Ethereal for testing
+        // Fallback to Ethereal for testing when no credentials
         const testAccount = await nodemailer.createTestAccount();
         this.transporter = nodemailer.createTransport({
           host: 'smtp.ethereal.email',
@@ -31,6 +32,7 @@ class EmailService {
             pass: testAccount.pass
           }
         });
+        logger.info('Using Ethereal test service (no Gmail credentials found)');
       }
 
       // Verify connection
@@ -51,7 +53,7 @@ class EmailService {
   async sendEmail(to, subject, htmlContent, textContent = null) {
     try {
       const mailOptions = {
-        from: process.env.EMAIL_FROM || 'noreply@civilytix.com',
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         to,
         subject,
         html: htmlContent,
@@ -60,7 +62,8 @@ class EmailService {
 
       const result = await this.transporter.sendMail(mailOptions);
       
-      if (process.env.NODE_ENV !== 'production') {
+      // Only show test URL if using Ethereal (testing service)
+      if (process.env.NODE_ENV !== 'production' && !process.env.EMAIL_USER) {
         logger.info('Email preview URL:', nodemailer.getTestMessageUrl(result));
       }
 
@@ -73,7 +76,7 @@ class EmailService {
   }
 
   async sendVerificationEmail(email, name, verificationToken) {
-    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
     
     const htmlContent = `
       <!DOCTYPE html>

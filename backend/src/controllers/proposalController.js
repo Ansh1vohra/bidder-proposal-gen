@@ -61,6 +61,34 @@ const generateProposal = async (req, res) => {
     // Get user profile for context
     const userProfile = await User.findById(req.user._id);
 
+    // Check if user can generate AI proposals
+    const canGenerateAI = userProfile.canGenerateProposal();
+    const canSeeWatermarked = userProfile.canSeeWatermarkedProposal();
+
+    // For free plan users, show watermarked demo proposal
+    if (!canGenerateAI && canSeeWatermarked) {
+      // Generate a sample watermarked proposal for demonstration
+      const watermarkedProposal = await generateWatermarkedDemo(tender, userProfile);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'This is a demo proposal with watermark. Upgrade to generate custom proposals.',
+        data: { 
+          proposal: watermarkedProposal,
+          isWatermarked: true,
+          upgradeRequired: true
+        }
+      });
+    }
+
+    // For users who cannot generate proposals and are not on free plan
+    if (!canGenerateAI) {
+      return res.status(403).json({
+        success: false,
+        message: 'Proposal generation limit reached. Please upgrade your plan.'
+      });
+    }
+
     // Prepare context for AI generation
     const context = {
       tender: {
@@ -122,6 +150,9 @@ const generateProposal = async (req, res) => {
 
     await proposal.save();
 
+    // Increment user's proposal usage (only for paid plans)
+    await userProfile.incrementProposalUsage();
+
     // Populate the created proposal
     await proposal.populate([
       { path: 'tenderId', select: 'title description submissionDeadline' },
@@ -133,7 +164,11 @@ const generateProposal = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Proposal generated successfully',
-      data: { proposal }
+      data: { 
+        proposal,
+        isWatermarked: false,
+        remainingProposals: userProfile.subscription.usage.monthlyLimit - (userProfile.subscription.usage.proposalsGenerated + 1)
+      }
     });
 
   } catch (error) {
@@ -143,6 +178,39 @@ const generateProposal = async (req, res) => {
       message: 'Failed to generate proposal'
     });
   }
+};
+
+/**
+ * Generate watermarked demo proposal for free plan users
+ */
+const generateWatermarkedDemo = async (tender, userProfile) => {
+  return {
+    _id: 'demo-' + Date.now(),
+    tenderId: tender._id,
+    createdBy: userProfile._id,
+    content: {
+      executiveSummary: `[DEMO WATERMARK] This is a sample proposal for ${tender.title}. This demonstrates how our AI generates proposals for your specific needs. Upgrade to unlock personalized proposal generation.`,
+      solution: {
+        description: `[DEMO WATERMARK] Our comprehensive solution addresses all requirements mentioned in the tender. This sample shows the quality and structure of AI-generated proposals available with paid plans.`,
+        methodology: `[DEMO WATERMARK] Sample methodology section showing our approach to solving the client's needs.`,
+        timeline: `[DEMO WATERMARK] Sample project timeline would be customized based on your specific requirements.`
+      },
+      pricing: {
+        totalAmount: 0,
+        breakdown: [
+          { item: '[DEMO] Sample cost item', amount: 0, description: 'Upgrade to see actual pricing calculations' }
+        ]
+      },
+      teamMembers: [
+        { name: '[DEMO] Your team members', role: 'Will be customized for your company' }
+      ]
+    },
+    status: 'demo',
+    isWatermarked: true,
+    watermarkText: 'DEMO PROPOSAL - UPGRADE TO GENERATE CUSTOM PROPOSALS',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
 };
 
 /**
@@ -638,6 +706,27 @@ const exportProposal = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to export this proposal'
+      });
+    }
+
+    // Check if user can download proposals (free plan restriction)
+    const user = await User.findById(req.user._id);
+    if (!user.canDownloadProposal()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Download is not available for free plan. Please upgrade to download proposals.',
+        upgradeRequired: true,
+        feature: 'proposal_download'
+      });
+    }
+
+    // Check if proposal is watermarked (should not be downloadable)
+    if (proposal.isWatermarked || proposal.status === 'demo') {
+      return res.status(403).json({
+        success: false,
+        message: 'Demo proposals cannot be downloaded. Please generate a custom proposal with a paid plan.',
+        upgradeRequired: true,
+        feature: 'proposal_download'
       });
     }
 

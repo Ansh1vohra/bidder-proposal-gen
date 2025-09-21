@@ -30,8 +30,8 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Check if user is active
-    if (!user.isActive) {
+    // Check if user account is active
+    if (user.status === 'inactive' || user.status === 'suspended') {
       return res.status(401).json({
         success: false,
         message: 'Account is deactivated'
@@ -50,8 +50,9 @@ const authenticateToken = async (req, res, next) => {
     req.user = user;
     req.userId = user._id;
     
-    // Update last activity
-    user.updateLastActivity();
+    // Update last activity (simple approach - just update lastLogin)
+    user.lastLogin = new Date();
+    user.save().catch(err => logger.warn('Failed to update last activity:', err));
 
     next();
   } catch (error) {
@@ -86,7 +87,7 @@ const checkSubscription = (requiredPlan = 'basic') => {
     try {
       const user = req.user;
       
-      if (!user.subscription.isActive) {
+      if (user.subscription.status !== 'active') {
         return res.status(403).json({
           success: false,
           message: 'Active subscription required'
@@ -216,10 +217,11 @@ const optionalAuth = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId).select('-password');
 
-    if (user && user.isActive) {
+    if (user && user.status === 'active') {
       req.user = user;
       req.userId = user._id;
-      user.updateLastActivity();
+      user.lastLogin = new Date();
+      user.save().catch(err => logger.warn('Failed to update last activity:', err));
     }
 
     next();
@@ -255,7 +257,7 @@ const verifyRefreshToken = async (req, res, next) => {
 
     // Check if refresh token exists in user's token list
     const tokenExists = user.refreshTokens.some(token => 
-      token.token === refreshToken && token.isActive
+      token.token === refreshToken
     );
 
     if (!tokenExists) {

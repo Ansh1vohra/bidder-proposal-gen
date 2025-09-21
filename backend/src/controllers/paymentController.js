@@ -2,6 +2,7 @@ const Payment = require('../models/Payment');
 const User = require('../models/User');
 const paymentService = require('../services/paymentService');
 const logger = require('../utils/logger');
+const { getTestPaymentMethods, createTestPaymentMethod } = require('../utils/testPaymentHelper');
 
 /**
  * Create payment intent for one-time payment
@@ -73,13 +74,53 @@ const createPaymentIntent = async (req, res) => {
  */
 const createSubscription = async (req, res) => {
   try {
-    const { priceId, paymentMethodId } = req.body;
+    const { priceId: requestPriceId, planId, paymentMethodId, promotionCode } = req.body;
 
-    if (!priceId || !paymentMethodId) {
+    // Handle both planId and priceId for backwards compatibility
+    let actualPriceId = requestPriceId;
+    
+    if (planId && !requestPriceId) {
+      // Map planId to actual Stripe price ID
+      const planToPriceMapping = {
+        'basic': process.env.STRIPE_BASIC_PRICE_ID || 'price_basic_monthly',
+        'professional': process.env.STRIPE_PROFESSIONAL_PRICE_ID || 'price_professional_monthly', 
+        'enterprise': process.env.STRIPE_ENTERPRISE_PRICE_ID || 'price_enterprise_monthly'
+      };
+      
+      actualPriceId = planToPriceMapping[planId];
+      
+      if (!actualPriceId) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid plan: ${planId}. Available plans: basic, professional, enterprise`
+        });
+      }
+    }
+
+    if (!actualPriceId || !paymentMethodId) {
       return res.status(400).json({
         success: false,
-        message: 'Price ID and payment method ID are required'
+        message: 'Price ID (or plan ID) and payment method ID are required'
       });
+    }
+
+    // Validate payment method ID format (basic validation)
+    if (typeof paymentMethodId !== 'string' || paymentMethodId.length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment method ID format. Please provide a valid Stripe payment method ID.'
+      });
+    }
+
+    // For development/testing: allow test payment method IDs
+    const isTestMode = process.env.NODE_ENV === 'development';
+    const testPaymentMethods = getTestPaymentMethods();
+    let finalPaymentMethodId = paymentMethodId;
+    
+    if (isTestMode && !paymentMethodId.startsWith('pm_')) {
+      // In test mode, use a default test payment method if invalid ID provided
+      finalPaymentMethodId = testPaymentMethods.visa;
+      logger.warn(`Test mode: using test payment method ${finalPaymentMethodId} instead of ${paymentMethodId}`);
     }
 
     // Check if user already has an active subscription
@@ -96,15 +137,74 @@ const createSubscription = async (req, res) => {
       });
     }
 
-    // Create subscription through Stripe
-    const subscription = await paymentService.createSubscription({
-      customer: req.user.stripeCustomerId,
-      priceId,
-      paymentMethodId,
-      metadata: {
-        userId: req.user._id.toString()
+    // Ensure user has a Stripe customer ID
+    let stripeCustomerId = req.user.subscription?.stripeCustomerId;
+    if (!stripeCustomerId) {
+      // Create Stripe customer
+      const customer = await paymentService.createCustomer({
+        email: req.user.email,
+        name: req.user.name,
+        metadata: {
+          userId: req.user._id.toString()
+        }
+      });
+      
+      stripeCustomerId = customer.id;
+      
+      // Update user with Stripe customer ID
+      if (!req.user.subscription) {
+        req.user.subscription = {};
       }
-    });
+      req.user.subscription.stripeCustomerId = stripeCustomerId;
+      await req.user.save();
+    }
+
+    // Handle payment method for development vs production
+    
+    // In development mode, create and attach a test payment method if needed
+    if (isTestMode && (!paymentMethodId.startsWith('pm_') || Object.values(testPaymentMethods).includes(paymentMethodId))) {
+      try {
+        const testPaymentMethod = await createTestPaymentMethod(stripeCustomerId);
+        finalPaymentMethodId = testPaymentMethod.id;
+        logger.info(`Created and attached test payment method: ${finalPaymentMethodId}`);
+      } catch (error) {
+        logger.error('Failed to create test payment method:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to create test payment method'
+        });
+      }
+    } else {
+      // Use the provided payment method ID
+      finalPaymentMethodId = paymentMethodId;
+    }
+
+    // Create subscription through Stripe
+    let subscription;
+    try {
+      subscription = await paymentService.createSubscription(
+        stripeCustomerId,
+        actualPriceId,
+        finalPaymentMethodId
+      );
+    } catch (stripeError) {
+      logger.error('Stripe subscription creation failed:', stripeError);
+      
+      // Handle specific Stripe errors
+      if (stripeError.message.includes('payment_method')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid payment method. Please check your payment method ID and try again.',
+          error: 'invalid_payment_method'
+        });
+      }
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create subscription. Please try again.',
+        error: 'stripe_error'
+      });
+    }
 
     // Determine plan from price ID
     const planMapping = {
@@ -113,22 +213,22 @@ const createSubscription = async (req, res) => {
       [process.env.STRIPE_ENTERPRISE_PRICE_ID]: 'enterprise'
     };
 
-    const plan = planMapping[priceId] || 'basic';
+    const plan = planMapping[actualPriceId] || planId || 'basic';
 
     // Create payment record
     const payment = new Payment({
       userId: req.user._id,
       stripe: {
-        customerId: req.user.stripeCustomerId,
+        customerId: stripeCustomerId,
         subscriptionId: subscription.id,
-        paymentMethodId
+        paymentMethodId: finalPaymentMethodId
       },
       type: 'subscription',
       amount: subscription.items.data[0].price.unit_amount,
       currency: subscription.currency,
       subscription: {
         plan,
-        priceId,
+        priceId: actualPriceId,
         billingCycle: subscription.items.data[0].price.recurring.interval === 'month' ? 'monthly' : 'yearly',
         currentPeriodStart: new Date(subscription.current_period_start * 1000),
         currentPeriodEnd: new Date(subscription.current_period_end * 1000),
@@ -138,20 +238,20 @@ const createSubscription = async (req, res) => {
       metadata: {
         source: 'web',
         userAgent: req.headers['user-agent'],
-        ipAddress: req.ip
+        ipAddress: req.ip,
+        promotionCode: promotionCode || null
       }
     });
 
     await payment.save();
 
     // Update user subscription details
-    req.user.subscription = {
-      isActive: subscription.status === 'active',
-      plan,
-      startDate: new Date(subscription.current_period_start * 1000),
-      expiresAt: new Date(subscription.current_period_end * 1000),
-      stripeSubscriptionId: subscription.id
-    };
+    req.user.subscription.currentPlan = plan;
+    req.user.subscription.subscriptionId = subscription.id;
+    req.user.subscription.priceId = actualPriceId;
+    req.user.subscription.status = subscription.status;
+    req.user.subscription.startDate = new Date(subscription.current_period_start * 1000);
+    req.user.subscription.endDate = new Date(subscription.current_period_end * 1000);
 
     await req.user.save();
 

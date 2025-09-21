@@ -167,7 +167,7 @@ const userSchema = new mongoose.Schema({
       },
       monthlyLimit: {
         type: Number,
-        default: 3 // Free plan limit
+        default: 0 // Free plan has no AI proposal generation
       },
       lastResetDate: {
         type: Date,
@@ -206,6 +206,8 @@ const userSchema = new mongoose.Schema({
   // Security
   refreshTokens: [{
     token: String,
+    ip: String,
+    userAgent: String,
     createdAt: {
       type: Date,
       default: Date.now,
@@ -307,16 +309,28 @@ userSchema.methods.resetLoginAttempts = function() {
 // Instance method to check if user can generate proposals
 userSchema.methods.canGenerateProposal = function() {
   const limits = {
-    free: 3,
-    basic: 20,
-    professional: 50,
-    enterprise: -1 // unlimited
+    free: 0,      // No AI proposals for free plan
+    basic: 20,    // 20 AI proposals for basic plan
+    professional: 50,   // 50 AI proposals for professional plan
+    enterprise: -1 // unlimited for enterprise
   };
   
   const limit = limits[this.subscription.currentPlan];
   if (limit === -1) return true; // unlimited
+  if (limit === 0) return false;  // no AI proposals allowed
   
   return this.subscription.usage.proposalsGenerated < limit;
+};
+
+// Instance method to check if user can see watermarked proposals
+userSchema.methods.canSeeWatermarkedProposal = function() {
+  return this.subscription.currentPlan === 'free';
+};
+
+// Instance method to check if user can download proposals
+userSchema.methods.canDownloadProposal = function() {
+  // Free plan users cannot download proposals
+  return this.subscription.currentPlan !== 'free';
 };
 
 // Instance method to increment proposal usage
@@ -352,6 +366,33 @@ userSchema.methods.generatePasswordResetToken = function() {
   this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
   
   return token;
+};
+
+// Refresh token management methods
+userSchema.methods.addRefreshToken = function(token, ip, userAgent) {
+  this.refreshTokens.push({
+    token,
+    ip,
+    userAgent,
+    createdAt: new Date()
+  });
+  
+  // Keep only the last 5 refresh tokens
+  if (this.refreshTokens.length > 5) {
+    this.refreshTokens = this.refreshTokens.slice(-5);
+  }
+  
+  return this.save();
+};
+
+userSchema.methods.removeRefreshToken = function(token) {
+  this.refreshTokens = this.refreshTokens.filter(rt => rt.token !== token);
+  return this.save();
+};
+
+userSchema.methods.clearAllRefreshTokens = function() {
+  this.refreshTokens = [];
+  return this.save();
 };
 
 // Static method to find user by email verification token
