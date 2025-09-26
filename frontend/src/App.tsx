@@ -3,8 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import ProtectedRoute from './components/common/ProtectedRoute';
 
 // Pages
 import AuthPage from './pages/AuthPage';
@@ -12,10 +13,12 @@ import DashboardPage from './pages/DashboardPage';
 import TendersPage from './pages/TendersPage';
 import ProposalsPage from './pages/ProposalsPage';
 import RecommendationsPage from './pages/RecommendationsPage';
+import SubscriptionPage from './pages/SubscriptionPage';
 
 // Layout Components
 import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
+import DashboardLayout from './components/layout/DashboardLayout';
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -42,30 +45,7 @@ const queryClient = new QueryClient({
   },
 });
 
-// Protected Route Component
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  
-  // Show loading while checking authentication
-  if (isLoading) {
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="100vh"
-      >
-        <div>Loading...</div>
-      </Box>
-    );
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/auth" replace />;
-  }
-  
-  return <>{children}</>;
-};
+// Create Material-UI theme
 
 // Main Layout Component
 const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -110,9 +90,9 @@ function App() {
                   path="/dashboard"
                   element={
                     <ProtectedRoute>
-                      <MainLayout>
+                      <DashboardLayout>
                         <DashboardPage />
-                      </MainLayout>
+                      </DashboardLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -121,9 +101,9 @@ function App() {
                   path="/tenders"
                   element={
                     <ProtectedRoute>
-                      <MainLayout>
+                      <DashboardLayout>
                         <TendersPage />
-                      </MainLayout>
+                      </DashboardLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -132,9 +112,9 @@ function App() {
                   path="/proposals"
                   element={
                     <ProtectedRoute>
-                      <MainLayout>
+                      <DashboardLayout>
                         <ProposalsPage />
-                      </MainLayout>
+                      </DashboardLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -143,9 +123,20 @@ function App() {
                   path="/recommendations"
                   element={
                     <ProtectedRoute>
-                      <MainLayout>
+                      <DashboardLayout>
                         <RecommendationsPage />
-                      </MainLayout>
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/subscription"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <SubscriptionPage />
+                      </DashboardLayout>
                     </ProtectedRoute>
                   }
                 />

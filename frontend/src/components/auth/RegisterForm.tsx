@@ -35,6 +35,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   validateForm, 
   required, 
@@ -76,6 +77,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { register } = useAuth();
   const { showNotification } = useNotification();
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState<RegisterFormData>({
     name: '',
@@ -156,7 +158,9 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
     try {
       const { confirmPassword, agreeToTerms, ...registerData } = formData;
       await register(registerData);
-      showNotification('success', 'Registration Successful', 'Please check your email to verify your account.');
+      showNotification('success', 'Registration Successful', 'Welcome! You have been successfully registered.');
+      // Redirect to dashboard after successful registration
+      navigate('/dashboard');
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
       setRegisterError(errorMessage);

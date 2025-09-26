@@ -110,6 +110,31 @@ class ApiClient {
 
   public isAuthenticated(): boolean {
     const token = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    const expiry = localStorage.getItem('tokenExpiry');
+    
+    if (!token || !refreshToken) {
+      console.log('Missing tokens in localStorage');
+      return false;
+    }
+
+    if (!expiry) {
+      console.log('Missing token expiry in localStorage');
+      return false;
+    }
+
+    const isExpired = Date.now() >= parseInt(expiry);
+    if (isExpired) {
+      console.log('Access token expired');
+      // Don't return false immediately, we have refresh token
+      return true; // We can still refresh the token
+    }
+    
+    return true;
+  }
+
+  public hasValidAccessToken(): boolean {
+    const token = localStorage.getItem('accessToken');
     const expiry = localStorage.getItem('tokenExpiry');
     
     if (!token || !expiry) {

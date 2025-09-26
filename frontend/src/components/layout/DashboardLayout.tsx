@@ -50,7 +50,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         }}
       >
         <Toolbar />
-        <Box sx={{ p: 3 }}>
+        <Box
+          sx={{
+            padding: 0, // Remove all padding
+          }}
+        >
           {children}
         </Box>
       </Box>

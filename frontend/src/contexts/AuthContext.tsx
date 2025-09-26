@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { User, AuthTokens } from '../types';
+import { User } from '../types';
 import { authService } from '../services/authService';
 
 interface AuthState {
@@ -105,6 +105,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check if user is authenticated on app load
   useEffect(() => {
+    console.log('AuthProvider mounted, checking authentication...');
     checkAuth();
   }, []);
 
@@ -112,19 +113,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      // Check if user is authenticated and get stored user data
-      if (authService.isAuthenticated()) {
-        const storedUser = authService.getStoredUser();
-        if (storedUser) {
-          dispatch({ type: 'AUTH_SUCCESS', payload: storedUser });
-          return;
-        }
+      // First check if we have valid tokens in localStorage
+      if (!authService.isAuthenticated()) {
+        console.log('No valid tokens found');
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return;
       }
-      
-      // No valid authentication found
-      dispatch({ type: 'SET_LOADING', payload: false });
+
+      // Get stored user data
+      const storedUser = authService.getStoredUser();
+      if (!storedUser) {
+        console.log('No stored user data found');
+        // Clear invalid tokens
+        authService.logout();
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return;
+      }
+
+      // Use stored user data immediately for better UX
+      dispatch({ type: 'AUTH_SUCCESS', payload: storedUser });
+
+      // Then try to get fresh user data from the server in the background
+      try {
+        const freshUser = await authService.getCurrentUser();
+        authService.storeUser(freshUser);
+        dispatch({ type: 'AUTH_SUCCESS', payload: freshUser });
+        console.log('User data refreshed from server');
+      } catch (error) {
+        console.warn('Failed to fetch fresh user data, using stored data:', error);
+        // If server request fails but tokens are valid, continue with stored data
+        // The stored data is already set above
+      }
     } catch (error) {
       console.error('Auth check failed:', error);
+      // Clear any invalid stored data
+      authService.clearStoredUser();
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
@@ -133,7 +156,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       dispatch({ type: 'AUTH_START' });
       
-      const { user, tokens } = await authService.login({ email, password });
+      const { user } = await authService.login({ email, password });
       authService.storeUser(user);
       
       dispatch({ type: 'AUTH_SUCCESS', payload: user });
@@ -148,7 +171,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       dispatch({ type: 'AUTH_START' });
       
-      const { user, tokens } = await authService.register(userData);
+      const { user } = await authService.register(userData);
       authService.storeUser(user);
       
       dispatch({ type: 'AUTH_SUCCESS', payload: user });

@@ -245,7 +245,7 @@ const verifyRefreshToken = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
     const user = await User.findById(decoded.userId).select('-password');
 
     if (!user) {
