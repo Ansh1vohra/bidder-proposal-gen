@@ -1,10 +1,13 @@
-import React from 'react';
-import { Container, Typography, Box } from '@mui/material';
+import React, { useState } from 'react';
+import { Container, Typography, Box, Dialog, DialogContent } from '@mui/material';
 import ProposalList from '../components/proposals/ProposalList';
 import { useProposals } from '../hooks/useProposals';
+import { Proposal } from '../types';
+import ProposalViewer from '../components/proposals/ProposalViewer';
 
 const ProposalsPage: React.FC = () => {
   const { data, isLoading, error } = useProposals();
+  const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
@@ -21,7 +24,14 @@ const ProposalsPage: React.FC = () => {
         proposals={data?.proposals || []}
         loading={isLoading}
         error={error?.message}
+        onProposalView={(p) => setSelectedProposal(p)}
       />
+
+      <Dialog open={!!selectedProposal} onClose={() => setSelectedProposal(null)} maxWidth="md" fullWidth>
+        <DialogContent>
+          {selectedProposal && <ProposalViewer proposal={selectedProposal} />}
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 };

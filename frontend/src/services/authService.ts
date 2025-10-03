@@ -1,4 +1,6 @@
 import { apiClient } from './apiClient';
+import { IS_DEMO } from '../config/appConfig';
+import { mockAuthService } from './mocks/mockServices';
 import { 
   User, 
   LoginCredentials, 
@@ -12,6 +14,7 @@ export class AuthService {
    * Login user with email and password
    */
   async login(credentials: LoginCredentials): Promise<{ user: User; tokens: AuthTokens }> {
+    if (IS_DEMO) return mockAuthService.login();
     const response: ApiResponse<{ user: User; tokens: AuthTokens }> = await apiClient.post('/auth/login', credentials);
     
     if (response.success && response.data) {
@@ -26,6 +29,7 @@ export class AuthService {
    * Register new user
    */
   async register(userData: RegisterData): Promise<{ user: User; tokens: AuthTokens }> {
+    if (IS_DEMO) return mockAuthService.register();
     const response: ApiResponse<{ user: User; tokens: AuthTokens }> = await apiClient.post('/auth/register', userData);
     
     if (response.success && response.data) {
@@ -41,6 +45,11 @@ export class AuthService {
    */
   async logout(): Promise<void> {
     try {
+      if (IS_DEMO) {
+        await mockAuthService.logout();
+        apiClient.clearTokens();
+        return;
+      }
       await apiClient.post('/auth/logout');
     } catch (error) {
       // Continue with local logout even if server request fails
@@ -54,6 +63,7 @@ export class AuthService {
    * Get current user profile
    */
   async getCurrentUser(): Promise<User> {
+    if (IS_DEMO) return mockAuthService.getCurrentUser();
     const response: ApiResponse<User> = await apiClient.get('/auth/profile');
     
     if (response.success && response.data) {

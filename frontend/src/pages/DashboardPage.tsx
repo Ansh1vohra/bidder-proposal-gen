@@ -150,9 +150,6 @@ const DashboardPage: React.FC = () => {
   const recentTenders = tenders?.tenders?.slice(0, 5) || [];
   const recentProposals = proposals?.proposals?.slice(0, 5) || [];
 
-  // Debug user object
-  console.log('Dashboard user object:', user);
-
   return (
     <Box sx={{ p: 3 }}>
       {/* Welcome Section */}

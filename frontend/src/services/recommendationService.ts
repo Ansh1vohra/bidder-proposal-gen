@@ -1,4 +1,6 @@
 import { apiClient } from './apiClient';
+import { IS_DEMO } from '../config/appConfig';
+import { mockRecommendationService } from './mocks/mockServices';
 import { 
   TenderRecommendation, 
   BidderRecommendation, 
@@ -17,6 +19,7 @@ export class RecommendationService {
     budgetMax?: number,
     algorithm: 'similarity' | 'history' | 'hybrid' = 'hybrid'
   ): Promise<TenderRecommendation[]> {
+    if (IS_DEMO) return mockRecommendationService.getTenderRecommendations();
     const params = new URLSearchParams({
       limit: limit.toString(),
       algorithm,
@@ -57,6 +60,7 @@ export class RecommendationService {
     minExperience?: number,
     industries?: string[]
   ): Promise<BidderRecommendation[]> {
+    if (IS_DEMO) return mockRecommendationService.getBidderRecommendations();
     const params = new URLSearchParams({
       tenderId,
       limit: limit.toString(),
@@ -90,6 +94,7 @@ export class RecommendationService {
     skills?: string[];
     experience?: string[];
   }): Promise<void> {
+    if (IS_DEMO) return mockRecommendationService.updatePreferences();
     const response: ApiResponse = await apiClient.post('/recommendations/update-preferences', preferences);
     
     if (!response.success) {
@@ -106,6 +111,7 @@ export class RecommendationService {
     currentContent?: string,
     context?: any
   ): Promise<string[]> {
+    if (IS_DEMO) return mockRecommendationService.getContentSuggestions();
     const response: ApiResponse<{ suggestions: string[] }> = await apiClient.post('/recommendations/content-suggestions', {
       tenderId,
       section,
@@ -124,6 +130,7 @@ export class RecommendationService {
    * Get similar tenders based on content analysis
    */
   async getSimilarTenders(tenderId: string, limit: number = 5): Promise<any[]> {
+    if (IS_DEMO) return mockRecommendationService.getSimilarTenders();
     const response: ApiResponse<{ tenders: any[] }> = await apiClient.get(
       `/recommendations/similar-tenders/${tenderId}?limit=${limit}`
     );
@@ -144,6 +151,7 @@ export class RecommendationService {
     growth: number;
     category: string;
   }>> {
+    if (IS_DEMO) return mockRecommendationService.getTrendingTopics();
     const response: ApiResponse<{ topics: any[] }> = await apiClient.get(
       `/recommendations/trending-topics?timeframe=${timeframe}`
     );
@@ -165,6 +173,7 @@ export class RecommendationService {
     topSkills: string[];
     marketTrends: string[];
   }> {
+    if (IS_DEMO) return mockRecommendationService.getMarketInsights();
     const params = new URLSearchParams();
     if (industry) params.append('industry', industry);
     if (location) params.append('location', location);
@@ -191,6 +200,7 @@ export class RecommendationService {
     estimatedTime: string;
     url?: string;
   }>> {
+    if (IS_DEMO) return mockRecommendationService.getLearningRecommendations();
     const response: ApiResponse<{ recommendations: any[] }> = await apiClient.get('/recommendations/learning');
     
     if (response.success && response.data) {
@@ -208,6 +218,7 @@ export class RecommendationService {
     rating: number,
     feedback?: string
   ): Promise<void> {
+    if (IS_DEMO) return mockRecommendationService.rateRecommendation();
     const response: ApiResponse = await apiClient.post('/recommendations/rate', {
       recommendationId,
       rating,
@@ -229,6 +240,7 @@ export class RecommendationService {
     totalRecommendations: number;
     successfulRecommendations: number;
   }> {
+    if (IS_DEMO) return mockRecommendationService.getRecommendationMetrics();
     const response: ApiResponse<any> = await apiClient.get('/recommendations/metrics');
     
     if (response.success && response.data) {

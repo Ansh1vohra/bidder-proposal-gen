@@ -222,7 +222,7 @@ const TenderCard: React.FC<TenderCardProps> = ({
             disabled={isExpired}
             sx={{ ml: 'auto' }}
           >
-            {isExpired ? 'Expired' : 'Apply Now'}
+            {isExpired ? 'Expired' : 'Generate AI Proposal'}
           </Button>
         </CardActions>
       )}

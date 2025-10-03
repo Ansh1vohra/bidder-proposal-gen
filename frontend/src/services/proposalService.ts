@@ -4,6 +4,8 @@ import {
   ApiResponse, 
   ProposalAnalytics 
 } from '../types';
+import { IS_DEMO } from '../config/appConfig';
+import { mockProposalService } from './mocks/mockServices';
 
 export class ProposalService {
   /**
@@ -14,6 +16,7 @@ export class ProposalService {
     userRequirements?: any, 
     customSections?: any[]
   ): Promise<Proposal> {
+    if (IS_DEMO) return mockProposalService.generateProposal();
     const response: ApiResponse<{ proposal: Proposal }> = await apiClient.post('/proposals/generate', {
       tenderId,
       userRequirements,
@@ -31,6 +34,7 @@ export class ProposalService {
    * Generate watermarked demo proposal for free users
    */
   async generateWatermarkedDemo(tenderId: string): Promise<Proposal> {
+    if (IS_DEMO) return mockProposalService.generateWatermarkedDemo();
     const response: ApiResponse<{ proposal: Proposal }> = await apiClient.post('/proposals/generate-demo', {
       tenderId,
     });
@@ -54,6 +58,7 @@ export class ProposalService {
     proposals: Proposal[];
     pagination: any;
   }> {
+    if (IS_DEMO) return mockProposalService.getProposals();
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
@@ -78,6 +83,7 @@ export class ProposalService {
    * Get proposal by ID
    */
   async getProposalById(id: string): Promise<Proposal> {
+    if (IS_DEMO) return mockProposalService.getProposalById(id);
     const response: ApiResponse<{ proposal: Proposal }> = await apiClient.get(`/proposals/${id}`);
     
     if (response.success && response.data) {
@@ -91,6 +97,7 @@ export class ProposalService {
    * Update proposal content
    */
   async updateProposal(id: string, updates: Partial<Proposal>): Promise<Proposal> {
+    if (IS_DEMO) return mockProposalService.updateProposal(id, updates);
     const response: ApiResponse<{ proposal: Proposal }> = await apiClient.put(`/proposals/${id}`, updates);
     
     if (response.success && response.data) {
@@ -104,6 +111,7 @@ export class ProposalService {
    * Submit proposal
    */
   async submitProposal(id: string): Promise<Proposal> {
+    if (IS_DEMO) return mockProposalService.submitProposal(id);
     const response: ApiResponse<{ proposal: Proposal }> = await apiClient.post(`/proposals/${id}/submit`);
     
     if (response.success && response.data) {
@@ -117,6 +125,7 @@ export class ProposalService {
    * Withdraw proposal
    */
   async withdrawProposal(id: string): Promise<Proposal> {
+    if (IS_DEMO) return mockProposalService.withdrawProposal(id);
     const response: ApiResponse<{ proposal: Proposal }> = await apiClient.post(`/proposals/${id}/withdraw`);
     
     if (response.success && response.data) {
@@ -130,6 +139,7 @@ export class ProposalService {
    * Delete proposal
    */
   async deleteProposal(id: string): Promise<void> {
+    if (IS_DEMO) return mockProposalService.deleteProposal();
     const response: ApiResponse = await apiClient.delete(`/proposals/${id}`);
     
     if (!response.success) {
@@ -141,6 +151,7 @@ export class ProposalService {
    * Download proposal as PDF
    */
   async downloadProposal(id: string, format: 'pdf' | 'docx' = 'pdf'): Promise<void> {
+    if (IS_DEMO) return mockProposalService.downloadProposal();
     await apiClient.downloadFile(`/proposals/${id}/download?format=${format}`, `proposal-${id}.${format}`);
   }
 
@@ -148,6 +159,7 @@ export class ProposalService {
    * Get proposal analytics
    */
   async getProposalAnalytics(): Promise<ProposalAnalytics> {
+    if (IS_DEMO) return mockProposalService.getProposalAnalytics();
     const response: ApiResponse<ProposalAnalytics> = await apiClient.get('/proposals/analytics');
     
     if (response.success && response.data) {
@@ -161,6 +173,7 @@ export class ProposalService {
    * Get proposal templates
    */
   async getTemplates(): Promise<any[]> {
+    if (IS_DEMO) return mockProposalService.getTemplates();
     const response: ApiResponse<{ templates: any[] }> = await apiClient.get('/proposals/templates');
     
     if (response.success && response.data) {
@@ -174,6 +187,7 @@ export class ProposalService {
    * Save proposal as template
    */
   async saveAsTemplate(proposalId: string, templateName: string): Promise<any> {
+    if (IS_DEMO) return mockProposalService.saveAsTemplate();
     const response: ApiResponse<{ template: any }> = await apiClient.post(`/proposals/${proposalId}/save-template`, {
       name: templateName,
     });
@@ -189,6 +203,7 @@ export class ProposalService {
    * Get proposal feedback/evaluation
    */
   async getProposalFeedback(id: string): Promise<any> {
+    if (IS_DEMO) return mockProposalService.getProposalFeedback();
     const response: ApiResponse<any> = await apiClient.get(`/proposals/${id}/feedback`);
     
     if (response.success && response.data) {
@@ -202,6 +217,7 @@ export class ProposalService {
    * Get proposal comparison with competitors
    */
   async getProposalComparison(proposalId: string): Promise<any> {
+    if (IS_DEMO) return mockProposalService.getProposalComparison();
     const response: ApiResponse<any> = await apiClient.get(`/proposals/${proposalId}/comparison`);
     
     if (response.success && response.data) {
@@ -220,6 +236,7 @@ export class ProposalService {
     currentContent?: string,
     context?: any
   ): Promise<string[]> {
+    if (IS_DEMO) return mockProposalService.getContentSuggestions();
     const response: ApiResponse<{ suggestions: string[] }> = await apiClient.post('/proposals/suggestions', {
       tenderId,
       section,
@@ -242,6 +259,7 @@ export class ProposalService {
     section: string, 
     content: string
   ): Promise<string> {
+    if (IS_DEMO) return mockProposalService.optimizeContent();
     const response: ApiResponse<{ optimizedContent: string }> = await apiClient.post(`/proposals/${proposalId}/optimize`, {
       section,
       content,

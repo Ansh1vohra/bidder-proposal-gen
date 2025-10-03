@@ -1,4 +1,6 @@
 import { apiClient } from './apiClient';
+import { IS_DEMO } from '../config/appConfig';
+import { mockPaymentService } from './mocks/mockServices';
 import { 
   Payment, 
   SubscriptionPlan, 
@@ -11,64 +13,9 @@ export class PaymentService {
    * Get available subscription plans
    */
   async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
-    const plans: SubscriptionPlan[] = [
-      {
-        id: 'free',
-        name: 'Free',
-        price: { monthly: 0, yearly: 0 },
-        features: [
-          'View watermarked proposal demos',
-          'Basic tender search',
-          'Limited tender recommendations',
-          'Community support'
-        ],
-        proposalsLimit: 0
-      },
-      {
-        id: 'basic',
-        name: 'Basic',
-        price: { monthly: 29, yearly: 290 },
-        features: [
-          'Generate up to 10 proposals/month',
-          'Download proposals in PDF/DOCX',
-          'Advanced tender search',
-          'AI-powered recommendations',
-          'Email support'
-        ],
-        proposalsLimit: 10
-      },
-      {
-        id: 'premium',
-        name: 'Premium',
-        price: { monthly: 79, yearly: 790 },
-        features: [
-          'Generate up to 50 proposals/month',
-          'All Basic features',
-          'Custom proposal templates',
-          'Advanced analytics',
-          'Priority support',
-          'API access'
-        ],
-        proposalsLimit: 50,
-        popular: true
-      },
-      {
-        id: 'enterprise',
-        name: 'Enterprise',
-        price: { monthly: 199, yearly: 1990 },
-        features: [
-          'Unlimited proposals',
-          'All Premium features',
-          'White-label solution',
-          'Custom integrations',
-          'Dedicated account manager',
-          'SLA guarantee'
-        ],
-        proposalsLimit: -1 // unlimited
-      }
-    ];
-
-    return plans;
+    if (IS_DEMO) return mockPaymentService.getSubscriptionPlans();
+    // Fallback to demo plans if backend is not used
+    return mockPaymentService.getSubscriptionPlans();
   }
 
   /**
@@ -83,6 +30,7 @@ export class PaymentService {
     paymentIntent?: any; 
     user: User;
   }> {
+    if (IS_DEMO) return mockPaymentService.createSubscription();
     const response: ApiResponse<{ 
       subscription: any; 
       paymentIntent?: any; 
@@ -111,6 +59,7 @@ export class PaymentService {
       resetDate: Date;
     };
   }> {
+    if (IS_DEMO) return mockPaymentService.getSubscriptionStatus();
     const response: ApiResponse<any> = await apiClient.get('/payments/subscription-status');
     
     if (response.success && response.data) {
@@ -124,6 +73,7 @@ export class PaymentService {
    * Cancel subscription
    */
   async cancelSubscription(): Promise<void> {
+    if (IS_DEMO) return mockPaymentService.cancelSubscription();
     const response: ApiResponse = await apiClient.post('/payments/cancel-subscription');
     
     if (!response.success) {
@@ -138,6 +88,7 @@ export class PaymentService {
     newPlanId: string, 
     billingPeriod: 'monthly' | 'yearly' = 'monthly'
   ): Promise<any> {
+    if (IS_DEMO) return mockPaymentService.updateSubscription();
     const response: ApiResponse<any> = await apiClient.post('/payments/update-subscription', {
       planId: newPlanId,
       billingPeriod,
@@ -157,6 +108,7 @@ export class PaymentService {
     payments: Payment[];
     pagination: any;
   }> {
+    if (IS_DEMO) return mockPaymentService.getPaymentHistory();
     const response: ApiResponse<{
       payments: Payment[];
       pagination: any;
@@ -173,6 +125,7 @@ export class PaymentService {
    * Update payment method
    */
   async updatePaymentMethod(paymentMethodId: string): Promise<void> {
+    if (IS_DEMO) return mockPaymentService.updatePaymentMethod();
     const response: ApiResponse = await apiClient.post('/payments/update-payment-method', {
       paymentMethodId,
     });
@@ -186,6 +139,7 @@ export class PaymentService {
    * Get invoice by ID
    */
   async getInvoice(invoiceId: string): Promise<any> {
+    if (IS_DEMO) return mockPaymentService.getInvoice();
     const response: ApiResponse<any> = await apiClient.get(`/payments/invoice/${invoiceId}`);
     
     if (response.success && response.data) {
@@ -199,6 +153,7 @@ export class PaymentService {
    * Download invoice
    */
   async downloadInvoice(invoiceId: string): Promise<void> {
+    if (IS_DEMO) return mockPaymentService.downloadInvoice();
     await apiClient.downloadFile(`/payments/invoice/${invoiceId}/download`, `invoice-${invoiceId}.pdf`);
   }
 
@@ -206,6 +161,7 @@ export class PaymentService {
    * Get billing portal URL (for Stripe Customer Portal)
    */
   async getBillingPortalUrl(): Promise<string> {
+    if (IS_DEMO) return mockPaymentService.getBillingPortalUrl();
     const response: ApiResponse<{ url: string }> = await apiClient.post('/payments/billing-portal');
     
     if (response.success && response.data) {
@@ -223,6 +179,7 @@ export class PaymentService {
     discount: number;
     expiresAt?: Date;
   }> {
+    if (IS_DEMO) return mockPaymentService.validatePromoCode();
     const response: ApiResponse<any> = await apiClient.post('/payments/validate-promo', { code });
     
     if (response.success && response.data) {
@@ -236,6 +193,7 @@ export class PaymentService {
    * Apply promotion code to subscription
    */
   async applyPromoCode(code: string): Promise<void> {
+    if (IS_DEMO) return mockPaymentService.applyPromoCode();
     const response: ApiResponse = await apiClient.post('/payments/apply-promo', { code });
     
     if (!response.success) {
@@ -259,6 +217,7 @@ export class PaymentService {
       cost: number;
     }>;
   }> {
+    if (IS_DEMO) return mockPaymentService.getUsageStats();
     const response: ApiResponse<any> = await apiClient.get('/payments/usage-stats');
     
     if (response.success && response.data) {

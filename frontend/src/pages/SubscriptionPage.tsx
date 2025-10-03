@@ -29,6 +29,8 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { paymentService } from '../services/paymentService';
+import { IS_DEMO } from '../config/appConfig';
 
 // Types for subscription plans
 interface PlanFeature {
@@ -63,9 +65,31 @@ const SubscriptionPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [availablePlans, setAvailablePlans] = useState<SubscriptionPlan[]>([]);
 
-  // Subscription plans configuration
-  const plans: SubscriptionPlan[] = [
+  // Fetch subscription plans (demo-friendly)
+  const fetchSubscriptionPlans = async () => {
+    try {
+      const plans = await paymentService.getSubscriptionPlans();
+      const mapped = plans.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price.monthly,
+        period: 'month' as const,
+        description: p.id === 'free' ? 'Perfect for getting started' : `Everything in lower tiers plus more`,
+        features: p.features.map(text => ({ text, included: true })),
+        recommended: Boolean((p as any).popular),
+        priceId: p.id,
+      }));
+      setAvailablePlans(mapped.length ? mapped : defaultPlans);
+    } catch (error) {
+      console.error('Failed to fetch subscription plans:', error);
+      setAvailablePlans(defaultPlans);
+    }
+  };
+
+  // Default subscription plans configuration
+  const defaultPlans: SubscriptionPlan[] = [
     {
       id: 'free',
       name: 'Free',
@@ -134,21 +158,23 @@ const SubscriptionPage: React.FC = () => {
   ];
 
   useEffect(() => {
+    fetchSubscriptionPlans();
     fetchPaymentHistory();
   }, []);
 
   const fetchPaymentHistory = async () => {
     try {
-      const response = await fetch('/api/payments/history', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setPaymentHistory(data.data || []);
-      }
+      const data = await paymentService.getPaymentHistory();
+      const mapped: PaymentHistory[] = (data.payments || []).map((p: any) => ({
+        id: p._id || p.id || 'pay_demo',
+        amount: (p.amount || 0) * 100,
+        currency: p.currency || 'usd',
+        status: p.status || 'paid',
+        date: p.createdAt || new Date().toISOString(),
+        description: p.description || 'Subscription payment',
+        invoiceUrl: p.invoiceUrl,
+      }));
+      setPaymentHistory(mapped);
     } catch (error) {
       console.error('Failed to fetch payment history:', error);
     }
@@ -159,26 +185,16 @@ const SubscriptionPage: React.FC = () => {
     
     setLoading(true);
     try {
-      const response = await fetch('/api/payments/create-subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-        body: JSON.stringify({
-          priceId: plan.priceId,
-          planName: plan.name.toLowerCase(),
-        }),
+      await paymentService.createSubscription(plan.id, 'pm_demo', 'monthly');
+      showNotification('success', 'Subscribed', `You are now on the ${plan.name} plan.`);
+      updateUser({
+        subscription: {
+          ...(user?.subscription || {}),
+          status: 'active',
+          currentPlan: plan.id as 'free' | 'basic' | 'professional' | 'enterprise',
+          usage: user?.subscription?.usage || { proposalsGenerated: 0, monthlyLimit: plan.id === 'enterprise' ? 0 : plan.id === 'professional' ? 50 : plan.id === 'basic' ? 10 : 0, lastResetDate: new Date() },
+        }
       });
-
-      const data = await response.json();
-      
-      if (data.success && data.data.url) {
-        // Redirect to Stripe Checkout
-        window.location.href = data.data.url;
-      } else {
-        showNotification('error', 'Subscription Error', data.message || 'Failed to create subscription');
-      }
     } catch (error) {
       showNotification('error', 'Subscription Error', 'Failed to process subscription');
       console.error('Subscription error:', error);
@@ -192,31 +208,14 @@ const SubscriptionPage: React.FC = () => {
     
     setLoading(true);
     try {
-      const response = await fetch('/api/payments/cancel-subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-        body: JSON.stringify({
-          subscriptionId: user.subscription.subscriptionId,
-        }),
+      await paymentService.cancelSubscription();
+      showNotification('success', 'Success', 'Subscription cancelled successfully');
+      updateUser({
+        subscription: {
+          ...user.subscription,
+          status: 'cancelled'
+        }
       });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        showNotification('success', 'Success', 'Subscription cancelled successfully');
-        // Update user data
-        updateUser({
-          subscription: {
-            ...user.subscription,
-            status: 'cancelled'
-          }
-        });
-      } else {
-        showNotification('error', 'Cancellation Error', data.message || 'Failed to cancel subscription');
-      }
     } catch (error) {
       showNotification('error', 'Cancellation Error', 'Failed to cancel subscription');
       console.error('Cancel subscription error:', error);
@@ -318,7 +317,7 @@ const SubscriptionPage: React.FC = () => {
           mb: 4
         }}
       >
-        {plans.map((plan) => (
+        {availablePlans.map((plan) => (
           <Box key={plan.id}>
             <Card 
               sx={{ 
@@ -335,18 +334,21 @@ const SubscriptionPage: React.FC = () => {
                 <Box
                   sx={{
                     position: 'absolute',
-                    top: -10,
+                    top: -12,
                     left: '50%',
                     transform: 'translateX(-50%)',
                     bgcolor: 'primary.main',
                     color: 'white',
                     px: 2,
                     py: 0.5,
-                    borderRadius: 1,
-                    fontSize: '0.875rem',
+                    borderRadius: 2,
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 0.5,
+                    boxShadow: 2,
+                    zIndex: 10,
                   }}
                 >
                   <StarIcon fontSize="small" />

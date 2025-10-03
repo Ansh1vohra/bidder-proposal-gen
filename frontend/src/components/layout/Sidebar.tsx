@@ -28,6 +28,7 @@ import {
   History,
   Bookmark,
   Notifications,
+  AccountCircle,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -115,6 +116,12 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant = 'permanent' 
   ];
 
   const settingsItems: NavigationItem[] = [
+    {
+      id: 'profile',
+      label: 'Profile',
+      icon: <AccountCircle />,
+      path: '/profile',
+    },
     {
       id: 'settings',
       label: 'Settings',

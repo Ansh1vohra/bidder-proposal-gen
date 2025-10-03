@@ -753,6 +753,93 @@ const handleInvoicePaymentFailed = async (invoice) => {
   }
 };
 
+/**
+ * Get available subscription plans
+ */
+const getPlans = async (req, res) => {
+  try {
+    const plans = [
+      {
+        id: 'free',
+        name: 'Free',
+        price: 0,
+        period: 'month',
+        description: 'Perfect for getting started',
+        priceId: '',
+        features: [
+          { text: '3 proposal generations per month', included: true },
+          { text: 'Basic tender matching', included: true },
+          { text: 'Email support', included: true },
+          { text: 'Advanced analytics', included: false },
+          { text: 'Priority support', included: false },
+          { text: 'Custom templates', included: false },
+        ],
+      },
+      {
+        id: 'basic',
+        name: 'Basic',
+        price: 29.99,
+        period: 'month',
+        description: 'For growing businesses',
+        priceId: process.env.STRIPE_BASIC_PRICE_ID || 'price_basic_monthly',
+        features: [
+          { text: '25 proposal generations per month', included: true },
+          { text: 'Advanced tender matching', included: true },
+          { text: 'Email support', included: true },
+          { text: 'Basic analytics', included: true },
+          { text: 'Priority support', included: false },
+          { text: 'Custom templates', included: false },
+        ],
+      },
+      {
+        id: 'professional',
+        name: 'Professional',
+        price: 99.99,
+        period: 'month',
+        description: 'For established companies',
+        priceId: process.env.STRIPE_PROFESSIONAL_PRICE_ID || 'price_professional_monthly',
+        recommended: true,
+        features: [
+          { text: '100 proposal generations per month', included: true },
+          { text: 'Advanced tender matching', included: true },
+          { text: 'Priority email support', included: true },
+          { text: 'Advanced analytics', included: true },
+          { text: 'Phone support', included: true },
+          { text: '5 custom templates', included: true },
+        ],
+      },
+      {
+        id: 'enterprise',
+        name: 'Enterprise',
+        price: 299.99,
+        period: 'month',
+        description: 'For large organizations',
+        priceId: process.env.STRIPE_ENTERPRISE_PRICE_ID || 'price_enterprise_monthly',
+        features: [
+          { text: 'Unlimited proposal generations', included: true },
+          { text: 'Advanced tender matching', included: true },
+          { text: '24/7 phone & email support', included: true },
+          { text: 'Advanced analytics & reporting', included: true },
+          { text: 'Dedicated account manager', included: true },
+          { text: 'Unlimited custom templates', included: true },
+        ],
+      },
+    ];
+
+    res.json({
+      success: true,
+      data: plans
+    });
+
+  } catch (error) {
+    logger.error('Get plans error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get subscription plans'
+    });
+  }
+};
+
 module.exports = {
   createPaymentIntent,
   createSubscription,
@@ -766,7 +853,7 @@ module.exports = {
   getBillingHistory: getPaymentHistory,
   downloadInvoice: createPaymentIntent,  // Placeholder
   processRefund: requestRefund,
-  getPlans: createPaymentIntent,  // Placeholder
+  getPlans,  // Implemented above
   handleWebhook,
   getAllTransactions: getPaymentHistory,  // Placeholder
   getRevenueStats: createPaymentIntent,  // Placeholder

@@ -5,6 +5,8 @@ import {
   SearchFilters, 
   TenderAnalytics 
 } from '../types';
+import { IS_DEMO } from '../config/appConfig';
+import { mockTenderService } from './mocks/mockServices';
 
 export class TenderService {
   /**
@@ -19,6 +21,7 @@ export class TenderService {
       itemsPerPage: number;
     };
   }> {
+    if (IS_DEMO) return mockTenderService.getTenders();
     const params = new URLSearchParams();
     
     if (filters.page) params.append('page', filters.page.toString());
@@ -49,6 +52,7 @@ export class TenderService {
    * Get tender by ID
    */
   async getTenderById(id: string): Promise<Tender> {
+    if (IS_DEMO) return mockTenderService.getTenderById(id);
     const response: ApiResponse<{ tender: Tender }> = await apiClient.get(`/tenders/${id}`);
     
     if (response.success && response.data) {
@@ -62,6 +66,7 @@ export class TenderService {
    * Create new tender
    */
   async createTender(tenderData: Partial<Tender>): Promise<Tender> {
+    if (IS_DEMO) return mockTenderService.createTender(tenderData);
     const response: ApiResponse<{ tender: Tender }> = await apiClient.post('/tenders', tenderData);
     
     if (response.success && response.data) {
@@ -75,6 +80,7 @@ export class TenderService {
    * Update tender
    */
   async updateTender(id: string, updates: Partial<Tender>): Promise<Tender> {
+    if (IS_DEMO) return mockTenderService.updateTender(id, updates);
     const response: ApiResponse<{ tender: Tender }> = await apiClient.put(`/tenders/${id}`, updates);
     
     if (response.success && response.data) {
@@ -88,6 +94,7 @@ export class TenderService {
    * Delete tender
    */
   async deleteTender(id: string): Promise<void> {
+    if (IS_DEMO) return mockTenderService.deleteTender();
     const response: ApiResponse = await apiClient.delete(`/tenders/${id}`);
     
     if (!response.success) {
@@ -99,6 +106,7 @@ export class TenderService {
    * Search tenders with AI-powered search
    */
   async searchTenders(query: string, limit: number = 10): Promise<Tender[]> {
+    if (IS_DEMO) return mockTenderService.searchTenders();
     const response: ApiResponse<{ tenders: Tender[] }> = await apiClient.post('/tenders/search', {
       query,
       limit,
@@ -115,6 +123,7 @@ export class TenderService {
    * Get trending tenders
    */
   async getTrendingTenders(limit: number = 10): Promise<Tender[]> {
+    if (IS_DEMO) return mockTenderService.getTrendingTenders(limit);
     const response: ApiResponse<{ tenders: Tender[] }> = await apiClient.get(`/tenders/trending?limit=${limit}`);
     
     if (response.success && response.data) {
@@ -131,6 +140,7 @@ export class TenderService {
     tenders: Tender[];
     pagination: any;
   }> {
+    if (IS_DEMO) return mockTenderService.getMyTenders();
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
@@ -156,6 +166,7 @@ export class TenderService {
    * Get tender analytics
    */
   async getTenderAnalytics(id: string): Promise<TenderAnalytics> {
+    if (IS_DEMO) return mockTenderService.getTenderAnalytics();
     const response: ApiResponse<TenderAnalytics> = await apiClient.get(`/tenders/${id}/analytics`);
     
     if (response.success && response.data) {
@@ -169,6 +180,7 @@ export class TenderService {
    * Close tender
    */
   async closeTender(id: string): Promise<Tender> {
+    if (IS_DEMO) return mockTenderService.closeTender(id);
     const response: ApiResponse<{ tender: Tender }> = await apiClient.post(`/tenders/${id}/close`);
     
     if (response.success && response.data) {
@@ -189,6 +201,7 @@ export class TenderService {
     byIndustry: Array<{ industry: string; count: number }>;
     byLocation: Array<{ location: string; count: number }>;
   }> {
+    if (IS_DEMO) return mockTenderService.getTenderStats();
     const response: ApiResponse<any> = await apiClient.get('/tenders/stats');
     
     if (response.success && response.data) {
@@ -202,6 +215,7 @@ export class TenderService {
    * Get tender categories
    */
   async getCategories(): Promise<string[]> {
+    if (IS_DEMO) return mockTenderService.getCategories();
     const response: ApiResponse<{ categories: string[] }> = await apiClient.get('/tenders/categories');
     
     if (response.success && response.data) {
@@ -215,6 +229,7 @@ export class TenderService {
    * Get tender industries
    */
   async getIndustries(): Promise<string[]> {
+    if (IS_DEMO) return mockTenderService.getIndustries();
     const response: ApiResponse<{ industries: string[] }> = await apiClient.get('/tenders/industries');
     
     if (response.success && response.data) {

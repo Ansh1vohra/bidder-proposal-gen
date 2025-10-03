@@ -6,7 +6,6 @@ import {
   Typography,
   Chip,
   Button,
-  Divider,
   IconButton,
   Avatar,
   Stack,
@@ -24,6 +23,11 @@ import {
   DialogActions,
   Breadcrumbs,
   Link,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import {
   Business,
@@ -45,7 +49,7 @@ import {
   Person,
   Phone,
   Email,
-  Language,
+  CloudUpload,
 } from '@mui/icons-material';
 import { Tender } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/formatUtils';
@@ -72,7 +76,9 @@ const TenderDetail: React.FC<TenderDetailProps> = ({
   loading = false,
 }) => {
   const [showApplyDialog, setShowApplyDialog] = useState(false);
+  const [showBomDialog, setShowBomDialog] = useState(false);
   const [expanded, setExpanded] = useState<string | false>('overview');
+  const [bom, setBom] = useState<Array<{ item: string; qty: number; unit: string; description?: string; price?: number }>>([]);
 
   const handleAccordionChange = (panel: string) => (
     event: React.SyntheticEvent,
@@ -99,10 +105,23 @@ const TenderDetail: React.FC<TenderDetailProps> = ({
     return `${daysLeft} Days Left`;
   };
 
-  const handleApply = () => {
-    setShowApplyDialog(false);
-    onApply?.(tender);
+  const handleUploadModel = async (file: File) => {
+    // Demo: create a sample BOM from uploaded file name
+    const base = file.name.replace(/\.[^.]+$/, '').slice(0, 20) || 'Model';
+    const demoBom = [
+      { item: `${base}-FRAME-001`, qty: 12, unit: 'pcs', description: 'Primary structural frame components - galvanized steel', price: 450.00 },
+      { item: `${base}-BOLT-M8-025`, qty: 96, unit: 'pcs', description: 'Hex bolts M8 x 25mm - grade 8.8 steel', price: 2.50 },
+      { item: `${base}-PLATE-10MM`, qty: 8, unit: 'pcs', description: 'Steel plates 10mm thickness - S355 grade', price: 125.00 },
+      { item: `${base}-CABLE-5M-001`, qty: 20, unit: 'm', description: 'Electrical cabling 5mm² - copper conductor', price: 15.00 },
+      { item: `${base}-PAINT-PROT`, qty: 4, unit: 'L', description: 'Protective coating - epoxy primer', price: 85.00 },
+      { item: `${base}-GASKET-SEAL`, qty: 24, unit: 'pcs', description: 'Weather sealing gaskets - EPDM rubber', price: 8.50 },
+      { item: `${base}-WELD-ROD`, qty: 5, unit: 'kg', description: 'Welding rods E7018 - 3.2mm diameter', price: 45.00 },
+      { item: `${base}-FASTENER-KIT`, qty: 3, unit: 'sets', description: 'Fastener kit - stainless steel hardware', price: 120.00 },
+    ];
+    setBom(demoBom);
   };
+
+  const fileInputId = 'tender-3d-upload';
 
   return (
     <Box>
@@ -130,7 +149,6 @@ const TenderDetail: React.FC<TenderDetailProps> = ({
               <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600 }}>
                 {tender.title}
               </Typography>
-              
               {/* Organization */}
               <Box display="flex" alignItems="center" mb={2}>
                 <Avatar sx={{ width: 40, height: 40, mr: 2, bgcolor: 'primary.light' }}>
@@ -173,15 +191,45 @@ const TenderDetail: React.FC<TenderDetailProps> = ({
                   <Flag />
                 </IconButton>
               </Box>
+              <label htmlFor={fileInputId}>
+                <input id={fileInputId} type="file" accept=".obj,.fbx,.stl,.gltf,.glb" hidden onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUploadModel(file);
+                }} />
+                <Button
+                  variant="contained"
+                  startIcon={<CloudUpload />}
+                  sx={{
+                    mt: 1,
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    color: 'white',
+                    fontWeight: 700,
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                    }
+                  }}
+                  component="span"
+                >
+                  📁 Upload 3D Model
+                </Button>
+              </label>
               <Button
                 variant="contained"
                 size="large"
                 onClick={() => setShowApplyDialog(true)}
                 disabled={isExpired || loading}
                 startIcon={<Assignment />}
-                sx={{ minWidth: 150 }}
+                sx={{ 
+                  minWidth: 180,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  fontWeight: 700,
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
+                  }
+                }}
               >
-                {isExpired ? 'Expired' : 'Apply Now'}
+                {isExpired ? 'Expired' : 'Generate AI Proposal'}
               </Button>
             </Box>
           </Box>
@@ -265,6 +313,59 @@ const TenderDetail: React.FC<TenderDetailProps> = ({
           ) : null}
         </CardContent>
       </Card>
+
+      {/* BOM Section (after 3D upload) */}
+      {bom.length > 0 && (
+        <Card sx={{ mb: 3, background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)' }}>
+          <CardContent>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                📋 Bill of Materials (AI Generated)
+              </Typography>
+              <Button 
+                variant="contained" 
+                size="small"
+                onClick={() => setShowBomDialog(true)}
+                sx={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  fontWeight: 600,
+                }}
+              >
+                View Detailed BOM
+              </Button>
+            </Box>
+            <Table size="small" sx={{ '& .MuiTableCell-root': { fontWeight: 500 } }}>
+              <TableHead>
+                <TableRow sx={{ '& .MuiTableCell-head': { bgcolor: 'rgba(0,0,0,0.05)', fontWeight: 700 } }}>
+                  <TableCell>Item Code</TableCell>
+                  <TableCell>Quantity</TableCell>
+                  <TableCell>Unit</TableCell>
+                  <TableCell>Description</TableCell>
+                  <TableCell align="right">Unit Price</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {bom.slice(0, 3).map((r, idx) => (
+                  <TableRow key={idx} sx={{ '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' } }}>
+                    <TableCell sx={{ fontFamily: 'monospace', fontWeight: 600 }}>{r.item}</TableCell>
+                    <TableCell>{r.qty}</TableCell>
+                    <TableCell>{r.unit}</TableCell>
+                    <TableCell>{r.description}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>${r.price?.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+                {bom.length > 3 && (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+                      ... and {bom.length - 3} more items (view detailed BOM for complete list)
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Content Accordions */}
       <Box>
@@ -467,19 +568,190 @@ const TenderDetail: React.FC<TenderDetailProps> = ({
         </Accordion>
       </Box>
 
-      {/* Apply Confirmation Dialog */}
-      <Dialog open={showApplyDialog} onClose={() => setShowApplyDialog(false)}>
-        <DialogTitle>Apply for Tender</DialogTitle>
-        <DialogContent>
-          <Typography>
-            You are about to start the application process for "{tender.title}".
-            This will take you to the proposal creation page where you can prepare your submission.
+      {/* AI Proposal Generation Dialog */}
+      <Dialog open={showApplyDialog} onClose={() => setShowApplyDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          fontWeight: 700,
+        }}>
+          🤖 Generate AI Proposal
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+              "{tender.title}"
+            </Typography>
+            <Typography variant="body2" color="text.secondary" paragraph>
+              Our advanced AI will analyze this tender and generate a comprehensive, tailored proposal 
+              that includes technical specifications, timeline, budget estimates, and compliance documentation.
+            </Typography>
+          </Box>
+
+          <Box sx={{ mb: 3, p: 2, bgcolor: 'rgba(16, 185, 129, 0.1)', borderRadius: 2, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'success.dark', mb: 1 }}>
+              ✅ What's Included in Your AI Proposal:
+            </Typography>
+            <Box component="ul" sx={{ m: 0, pl: 2 }}>
+              <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                Executive Summary tailored to procurement requirements
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                Technical solution matching exact specifications
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                Detailed project timeline with milestones
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                Competitive pricing analysis and budget breakdown
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                Risk assessment and mitigation strategies
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                Quality assurance and compliance documentation
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                Company credentials and past project references
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ mb: 3, p: 2, bgcolor: 'rgba(59, 130, 246, 0.1)', borderRadius: 2, border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.dark', mb: 1 }}>
+              🚀 AI Generation Process:
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              <Chip label="1. Analyze Requirements" size="small" color="primary" variant="outlined" />
+              <Chip label="2. Generate Content" size="small" color="primary" variant="outlined" />
+              <Chip label="3. Format & Review" size="small" color="primary" variant="outlined" />
+              <Chip label="4. Export Ready" size="small" color="success" variant="outlined" />
+            </Box>
+          </Box>
+
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <strong>Estimated Generation Time:</strong> 30-45 seconds
+              <br />
+              <strong>Output Formats:</strong> PDF, DOCX, and interactive web view
+            </Typography>
+          </Alert>
+
+          <Typography variant="caption" color="text.secondary">
+            By proceeding, you acknowledge that this AI-generated proposal will be customized based on the tender requirements 
+            and your company profile. You can review and edit the proposal before final submission.
           </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowApplyDialog(false)}>Cancel</Button>
-          <Button onClick={handleApply} variant="contained">
-            Continue to Application
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button onClick={() => setShowApplyDialog(false)} variant="outlined">
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => { 
+              setShowApplyDialog(false); 
+              onApply?.(tender); 
+            }} 
+            variant="contained"
+            size="large"
+            sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              fontWeight: 600,
+              px: 4,
+            }}
+          >
+            🚀 Generate AI Proposal
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* BOM Detail Dialog */}
+      <Dialog open={showBomDialog} onClose={() => setShowBomDialog(false)} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          color: 'white',
+          fontWeight: 700,
+        }}>
+          📋 Detailed Bill of Materials
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body1" paragraph>
+              AI-generated Bill of Materials based on 3D model analysis and industry standards.
+            </Typography>
+            
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2, mb: 3 }}>
+              <Card variant="outlined" sx={{ p: 2 }}>
+                <Typography variant="caption" color="text.secondary">Total Items</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>{bom.length}</Typography>
+              </Card>
+              <Card variant="outlined" sx={{ p: 2 }}>
+                <Typography variant="caption" color="text.secondary">Estimated Cost</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  ${bom.reduce((sum, item) => sum + (item.price || 0) * item.qty, 0).toFixed(2)}
+                </Typography>
+              </Card>
+              <Card variant="outlined" sx={{ p: 2 }}>
+                <Typography variant="caption" color="text.secondary">Lead Time</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>4-6 weeks</Typography>
+              </Card>
+            </Box>
+          </Box>
+
+          <Table>
+            <TableHead>
+              <TableRow sx={{ '& .MuiTableCell-head': { bgcolor: 'rgba(16, 185, 129, 0.1)', fontWeight: 700 } }}>
+                <TableCell>Item Code</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell align="center">Qty</TableCell>
+                <TableCell>Unit</TableCell>
+                <TableCell align="right">Unit Price</TableCell>
+                <TableCell align="right">Total Price</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {bom.map((item, idx) => (
+                <TableRow key={idx} sx={{ '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' } }}>
+                  <TableCell sx={{ fontFamily: 'monospace', fontWeight: 600, color: 'primary.main' }}>
+                    {item.item}
+                  </TableCell>
+                  <TableCell>{item.description}</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>{item.qty}</TableCell>
+                  <TableCell>{item.unit}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>
+                    ${item.price?.toFixed(2)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: 'success.dark' }}>
+                    ${((item.price || 0) * item.qty).toFixed(2)}
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow sx={{ bgcolor: 'rgba(16, 185, 129, 0.1)' }}>
+                <TableCell colSpan={5} sx={{ fontWeight: 700, textAlign: 'right' }}>
+                  Total Estimated Cost:
+                </TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, fontSize: '1.1rem', color: 'success.dark' }}>
+                  ${bom.reduce((sum, item) => sum + (item.price || 0) * item.qty, 0).toFixed(2)}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+          
+          <Alert severity="info" sx={{ mt: 3 }}>
+            <Typography variant="body2">
+              <strong>Note:</strong> This BOM is AI-generated for estimation purposes. 
+              Final specifications and pricing may vary based on supplier negotiations and detailed engineering review.
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button onClick={() => setShowBomDialog(false)} variant="outlined">
+            Close
+          </Button>
+          <Button variant="contained" sx={{ fontWeight: 600 }}>
+            Export BOM
+          </Button>
+          <Button variant="contained" color="success" sx={{ fontWeight: 600 }}>
+            Include in Proposal
           </Button>
         </DialogActions>
       </Dialog>

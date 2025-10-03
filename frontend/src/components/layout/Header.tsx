@@ -11,7 +11,6 @@ import {
   Badge,
   useTheme,
   useMediaQuery,
-  Button,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -173,10 +172,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMobileMenuOpen }) => {
         position="fixed"
         sx={{
           zIndex: theme.zIndex.drawer + 1,
-          backgroundColor: theme.palette.background.paper,
-          color: theme.palette.text.primary,
-          boxShadow: theme.shadows[1],
-          borderBottom: `1px solid ${theme.palette.divider}`,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: 'none'
         }}
       >
         <Toolbar>
@@ -192,8 +192,21 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMobileMenuOpen }) => {
             </IconButton>
           )}
 
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Bidder Proposal Generator
+          <Typography 
+            variant="h6" 
+            noWrap 
+            component="div" 
+            sx={{ 
+              flexGrow: 1,
+              fontWeight: 700,
+              background: 'linear-gradient(45deg, #ffffff 30%, #e0e7ff 90%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              fontSize: '1.5rem',
+            }}
+          >
+            🚀 Civilytix AI
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -216,7 +229,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMobileMenuOpen }) => {
                   <Typography variant="subtitle2" component="div">
                     {user.name}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption">
                     {user.profile?.companyName || user.userType}
                   </Typography>
                 </Box>

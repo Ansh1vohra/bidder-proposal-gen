@@ -76,7 +76,7 @@ class ApiClient {
             }
           } catch (refreshError) {
             this.clearTokens();
-            window.location.href = '/login';
+            window.location.href = '/auth';
             return Promise.reject(refreshError);
           }
         }
